@@ -1,4 +1,1 @@
-music-lager
-===========
-
-music-lager is a mis-heard and slightly more interesting name than music logger.
+musicbrainz-logs is the replacement project for the previous splunk based log analysis toolkit.

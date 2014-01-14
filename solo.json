@@ -1,0 +1,8 @@
+{
+    "run_list": [ 
+         "recipe[musicbrainz-logs::prereq]",
+         "recipe[tar::default]",
+         "recipe[musicbrainz-logs::solr]",
+         "recipe[musicbrainz-logs::default]"
+    ]
+}

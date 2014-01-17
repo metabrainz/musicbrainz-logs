@@ -1,0 +1,22 @@
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Latest plays</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap-3.0.3.min.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap-theme-3.0.3.min.css"/>
+  </head>
+  <body>
+     <div class="container-fluid">
+        <div class="row-fluid">
+            <div class="span10">
+               <a href="/useragent/t_useragent">tiny</a>
+               <a href="/useragent/s_useragent">small</a>
+               <a href="/useragent/f_useragent">full</a>
+            <div class="span2"></div>
+        </div>
+      </div>
+  </body>
+</html>

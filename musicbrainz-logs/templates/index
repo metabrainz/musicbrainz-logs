@@ -1,0 +1,14 @@
+{% extends 'layout' %}
+{% set active = "index" %}
+{% block body %}
+<div class="row-fluid">
+    <div class="span10">
+       <ul>
+           <li><a href="/facet/t_useragent">All user agents on tiny string</a></li>
+           <li><a href="/facet/s_useragent">All user agents on short string</a></li>
+           <li><a href="/facet/f_useragent">All user agents on full string</a></li>
+           <li><a href="/facet/custom?facet.field=f_useragent&q=f_useragent:*0.3devMODIFIED*">All headphones</a></li>
+       </ul>
+    <div class="span2"></div>
+</div>
+{% endblock %}

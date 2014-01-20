@@ -1,4 +1,4 @@
-music-lager
-===========
+musicbrainz-logs
+================
 
-music-lager is a mis-heard and slightly more interesting name than music logger.
+A project for mining MusicBrainz logs

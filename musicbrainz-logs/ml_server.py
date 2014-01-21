@@ -10,6 +10,7 @@ SOLR_SERVER   = "localhost"
 SOLR_PORT     = 8983
 DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "f_useragent"
+FIELDS        = [ "f_useragent", "s_useragent", "t_useragent", "ip", "httpdate", "request", "size", "status" ]
 
 STATIC_PATH = "/static"
 STATIC_FOLDER = "static"
@@ -27,7 +28,6 @@ def generate_facet_page(field, query, title, rows=100):
         field = DEFAULT_FIELD
 
     url = "http://%s:%d/solr/select?q=%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % (SOLR_SERVER, SOLR_PORT, field, query, field, rows)
-    print url
     try:
         response = urllib2.urlopen(url)
         pass
@@ -36,17 +36,20 @@ def generate_facet_page(field, query, title, rows=100):
                                error="The SOLR servers says: Ur query sucks: '%s'" % query, 
                                query=query,
                                field=field,
+                               fields=FIELDS,
                                title=title)
     except urllib2.URLError:
         return render_template("facet_response", 
                                error="The SOLR server could not be reached.",
                                query=query,
                                field=field,
+                               fields=FIELDS,
                                title=title)
     except:
         return render_template("facet_response", 
                                error="Unknown error communicating with SOLR server.",
                                query=query,
+                               fields=FIELDS,
                                field=field,
                                title=title)
         
@@ -68,6 +71,7 @@ def generate_facet_page(field, query, title, rows=100):
                            field=field,
                            query=query,
                            url=url,
+                           fields=FIELDS,
                            total="{:,}".format(total),
                            title=title)
 

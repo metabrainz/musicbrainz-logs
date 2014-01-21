@@ -1,0 +1,63 @@
+{% extends 'layout' %}
+{% set active = "index" %}
+{% block body %}
+<div class="row">
+    <div class="span1"></div>
+    <div class="span10">
+        <h1>{{ title }}</h1>
+
+        <div class="alert alert-warning" id="status-message" style="visibility: hidden; margin-top: 20px">.</div>
+
+       <form role="form" class="form-inline" action="/search">
+          <label class="sr-only" for="field">Field</label>
+          <select class="form-control" name="field">
+             {% for f in fields %}
+                 <option {% if field == f %}selected{% endif %}>{{ f }}</option>
+             {% endfor %}
+          </select>
+          <label class="sr-only" for="query">Query</label>
+          <input class="form-control" id="query" type="text" name="query" style="width: 75%" value="{{ query }}">
+          <button type="submit" class="btn btn-primary">Search</button>
+       </form>
+       {% if url %}
+           <div><pre>{{ url }}</pre></div>
+       {% endif %}
+       {% if docs %}
+            <b>{{ count }} results describing {{ total }} matching documents</b>
+            <table class="table table-striped table-bordered">
+            <thead>
+                <th>date</th><th>status</th><th>useragent</th>
+            </thead>
+            {% for doc in docs %}
+                <tr>
+                   <td>{{ doc.httpdate }}</td>
+                   <td>{{ doc.status }}</td>
+                   <td>{{ doc.useragent }}</td>
+                </tr>
+                <tr>
+                   <td colspan="3">{{ doc.request }}</td>
+                </tr>
+            {% endfor %}
+            </table>
+       {% endif %}
+    </div>
+    <div class="span1"></div>
+</div>
+<script type="text/javascript" src="/static/js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript">
+// query {{ query }}
+// field {{ field }}
+$(document).ready(function() 
+{
+    {% if error %}
+         set_message("{{ error }}");
+    {% endif %}
+});
+function set_message(txt)
+{
+    $("#status-message").text(txt);
+    $("#status-message").css('visibility', 'visible');
+    $("#status-message").show();
+}
+</script>
+{% endblock %}

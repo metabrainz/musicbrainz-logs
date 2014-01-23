@@ -18,50 +18,50 @@ def generate_search_page(field, query, title, rows=100):
         field = DEFAULT_FIELD
 
     url = "http://%s:%d/solr/select?q=%s:%s&rows=%d&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, rows)
-    try:
-        response = urllib2.urlopen(url)
-        pass
-    except urllib2.HTTPError, e:
-        return render_template("search_response", 
-                               error="The SOLR servers says: Ur query sucks: '%s'" % query, 
-                               query=query,
-                               field=field,
-                               fields=FIELDS,
-                               title=title)
-    except urllib2.URLError:
-        return render_template("search_response", 
-                               error="The SOLR server could not be reached.",
-                               query=query,
-                               field=field,
-                               fields=FIELDS,
-                               title=title)
-    except:
-        return render_template("search_response", 
-                               error="Unknown error communicating with SOLR server.",
-                               query=query,
-                               fields=FIELDS,
-                               field=field,
-                               title=title)
-        
-    jdata = response.read()
+    if 0:
+        try:
+            response = urllib2.urlopen(url)
+            pass
+        except urllib2.HTTPError, e:
+            return render_template("search_response", 
+                                   error="The SOLR servers says: Ur query sucks: '%s'" % query, 
+                                   query=query,
+                                   field=field,
+                                   fields=FIELDS,
+                                   title=title)
+        except urllib2.URLError:
+            return render_template("search_response", 
+                                   error="The SOLR server could not be reached.",
+                                   query=query,
+                                   field=field,
+                                   fields=FIELDS,
+                                   title=title)
+        except:
+            return render_template("search_response", 
+                                   error="Unknown error communicating with SOLR server.",
+                                   query=query,
+                                   fields=FIELDS,
+                                   field=field,
+                                   title=title)
+        jdata = response.read()
+    else:        
+        j = open("json/beets_search.json", "r")
+        field = "useragent"
+        jdata = j.read()
+        j.close()
     #    print jdata
     data = json.loads(jdata)
-    docs = []
-    doc_data = data['response']['docs']
+    docs = data['response']['docs']
     num_found = data['response']['numFound']
-    total = 0
-    for doc in doc_data:
-        print doc
 
     return render_template("search_response", 
-                           docs=doc_data, 
-                           count=len(docs),
-                           num_found=num_found,
+                           docs=docs, 
+                           num_found="{:,}".format(num_found),
+                           doc_count="{:,}".format(len(docs)),
                            field=field,
                            query=query,
                            url=url,
                            fields=FIELDS,
-                           total="{:,}".format(total),
                            title=title)
 
 @app.route("/search")

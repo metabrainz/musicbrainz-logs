@@ -23,7 +23,7 @@
            <div><pre>{{ url }}</pre></div>
        {% endif %}
        {% if docs %}
-            <b>{{ count }} results describing {{ total }} matching documents</b>
+            <b>{{ doc_count }} results describing {{ num_found }} matching documents</b>
             <table class="table table-striped table-bordered">
             <thead>
                 <th>date</th><th>status</th><th>useragent</th>

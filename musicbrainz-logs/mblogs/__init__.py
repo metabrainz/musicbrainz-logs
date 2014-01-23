@@ -13,3 +13,4 @@ app = Flask(__name__,
 import index
 import facet
 import search
+import filtered_facet

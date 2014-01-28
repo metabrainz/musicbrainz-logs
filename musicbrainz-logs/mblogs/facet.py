@@ -18,44 +18,34 @@ def generate_facet_page(field, query, title, rows=100):
         field = DEFAULT_FIELD
 
     url = "http://%s:%d/solr/select?q=%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, field, rows)
-    if 0:
-        try:
-            response = urllib2.urlopen(url)
-            pass
-        except urllib2.HTTPError, e:
-            code = e.code
-            return render_template("facet_response", 
-                                   error="The SOLR servers says: Ur query sucks: '%s' %d" % (query, code), 
-                                   query=query,
-                                   field=field,
-                                   fields=FIELDS,
-                                   url=url,
-                                   title=title)
-        except urllib2.URLError, e:
-            code = e.getcode()
-            return render_template("facet_response", 
-                                   error="The SOLR server could not be reached: %d" % code,
-                                   query=query,
-                                   field=field,
-                                   fields=FIELDS,
-                                   url=url,
-                                   title=title)
-        except:
-            return render_template("facet_response", 
-                                   error="Unknown error communicating with SOLR server.",
-                                   query=query,
-                                   fields=FIELDS,
-                                   field=field,
-                                   url=url,
-                                   title=title)
-            
-        jdata = response.read()
-    else:
-        j = open("json/useragent_facet_star.json", "r")
-        field = "f_useragent"
-        jdata = j.read()
-        j.close()
-
+    try:
+        response = urllib2.urlopen(url)
+    except urllib2.HTTPError, e:
+        return render_template("facet_response", 
+                               error="The SOLR servers says: Ur query sucks: '%s' %d: %s" % (query, e.code, e.reason), 
+                               query=query,
+                               field=field,
+                               fields=FIELDS,
+                               url=url,
+                               title=title)
+    except urllib2.URLError, e:
+        return render_template("facet_response", 
+                               error="The SOLR server could not be reached: %s" % e.args[0][1],
+                               query=query,
+                               field=field,
+                               fields=FIELDS,
+                               url=url,
+                               title=title)
+    except:
+        return render_template("facet_response", 
+                               error="Unknown error communicating with SOLR server.",
+                               query=query,
+                               fields=FIELDS,
+                               field=field,
+                               url=url,
+                               title=title)
+        
+    jdata = response.read()
     data = json.loads(jdata)
     docs = []
     doc_data = data['facet_counts']['facet_fields'][field]

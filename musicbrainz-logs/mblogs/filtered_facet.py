@@ -3,6 +3,7 @@
 import urllib
 import urllib2
 import json
+from operator import itemgetter
 from flask import request, render_template, redirect
 from cgi import escape
 from ml_server import app
@@ -13,40 +14,70 @@ from ml_server import app
 #   Unknown user agents
 
 # all string names should be lowercase
-gratis_useragent_strings = ["beets", "vlc", "headphones", "picard", "banshee", "xbmc"]
+gratis_useragent_strings = ["beets", "vlc", "headphones", "picard", "banshee", "xbmc", "googlebot"]
 paying_useragent_strings  = ["jaikoz", "figureeight", "songkong", "guardian.co.uk" ]
 
 DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "f_useragent"
 FIELDS        = [ "useragent", "f_useragent", "s_useragent", "t_useragent", "ip", "httpdate", "request", "size", "status" ]
 
+def sort_facets(facets):
+    print "sort facets --"
+    ret = []
+    for k in sorted(facets.keys()):
+        print k
+        ret.append({ 'field' : k, 'value' : facets[k]})
+
+    return ret
+
 def filter_useragents(docs):
-    gratis_useragents = []
-    paying_useragents = []
-    other_useragents = []
+    gratis_useragents = {}
+    paying_useragents = {}
+    other_useragents = {}
     for doc in docs:
-        print doc
         found = False
         lc_field = doc['field'].lower()
         for ua in gratis_useragent_strings:
             if lc_field.find(ua) != -1:
                 found = True
-                gratis_useragents.append({ 'field' : doc['field'], 'value' : doc['value']})
-                break
+                try:
+                    count = gratis_useragents[ua]
+                except KeyError:
+                    count = 0
 
+                gratis_useragents[ua] = count + doc['value']
+                break
         if not found:
             for ua in paying_useragent_strings:
                 if lc_field.find(ua) != -1:
                     found = True
-                    paying_useragents.append({ 'field' : doc['field'], 'value' : doc['value']})
-                    break
+                    try:
+                        count = paying_useragents[ua]
+                    except KeyError:
+                        count = 0
 
+                    paying_useragents[ua] = count + doc['value']
+                    break
         if not found:
-            other_useragents.append({ 'field' : doc['field'], 'value' : doc['value']})
+            other_useragents[ua] = count + doc['value']
+
+    gratis_useragents = sort_facets(gratis_useragents)
+    paying_useragents = sort_facets(paying_useragents)
+    other_useragents = sort_facets(other_useragents)
 
     return (gratis_useragents,
             paying_useragents,
             other_useragents)
+
+def jazz_up_results(doc_list):
+    docs = []
+    facet_count = 0
+    for doc in doc_list:
+        facet_count += int(doc['value'])
+        docs.append({ 'field' : escape(doc['field']),
+                      'value' : "{:,}".format(doc['value']) })
+
+    return (facet_count, docs)
 
 def generate_facet_page(field, query, title, rows=100):
     if not query:
@@ -55,43 +86,38 @@ def generate_facet_page(field, query, title, rows=100):
         field = DEFAULT_FIELD
 
     url = "http://%s:%d/solr/select?q=%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, field, rows)
-    if 0:
-        try:
-            response = urllib2.urlopen(url)
-            pass
-        except urllib2.HTTPError, e:
-            code = e.code
-            return render_template("filtered_facet_response", 
-                                   error="The SOLR servers says: Ur query sucks: '%s' %d" % (query, code), 
-                                   query=query,
-                                   field=field,
-                                   fields=FIELDS,
-                                   url=url,
-                                   title=title)
-        except urllib2.URLError, e:
-            code = e.getcode()
-            return render_template("filtered_facet_response", 
-                                   error="The SOLR server could not be reached: %d" % code,
-                                   query=query,
-                                   field=field,
-                                   fields=FIELDS,
-                                   url=url,
-                                   title=title)
-        except:
-            return render_template("filtered_facet_response", 
-                                   error="Unknown error communicating with SOLR server.",
-                                   query=query,
-                                   fields=FIELDS,
-                                   field=field,
-                                   url=url,
-                                   title=title)
-            
-        jdata = response.read()
-    else:
-        j = open("json/useragent_facet_star.json", "r")
-        field = "f_useragent"
-        jdata = j.read()
-        j.close()
+    print url
+    try:
+        response = urllib2.urlopen(url)
+        pass
+    except urllib2.HTTPError, e:
+        code = e.code
+        return render_template("filtered_facet_response", 
+                               error="The SOLR servers says: Ur query sucks: '%s' %d" % (query, code), 
+                               query=query,
+                               field=field,
+                               fields=FIELDS,
+                               url=url,
+                               title=title)
+    except urllib2.URLError, e:
+        code = e.getcode()
+        return render_template("filtered_facet_response", 
+                               error="The SOLR server could not be reached: %d" % code,
+                               query=query,
+                               field=field,
+                               fields=FIELDS,
+                               url=url,
+                               title=title)
+    except:
+        return render_template("filtered_facet_response", 
+                               error="Unknown error communicating with SOLR server.",
+                               query=query,
+                               fields=FIELDS,
+                               field=field,
+                               url=url,
+                               title=title)
+        
+    jdata = response.read()
 
     data = json.loads(jdata)
     docs = []
@@ -103,13 +129,10 @@ def generate_facet_page(field, query, title, rows=100):
                       'value' : doc_data[i * 2 + 1] })
 
     gratis_useragents, paying_useragents, other_useragents = filter_useragents(docs)
-
-    docs = []
-    facet_count = 0
-    for doc in other_useragents:
-        facet_count += int(doc['value'])
-        docs.append({ 'field' : escape(doc['field']),
-                      'value' : "{:,}".format(doc['value']) })
+    ret = []
+    ret.append(jazz_up_results(gratis_useragents))
+    ret.append(jazz_up_results(paying_useragents))
+    ret.append(jazz_up_results(other_useragents))
 
     return render_template("filtered_facet_response", 
                            docs=docs, 
@@ -134,7 +157,6 @@ def filtered_facet():
         query = ""
 
     if field and query:
-        print "/filtered-facet/%s/%s" % (urllib.quote(field), urllib.quote(query))
         return redirect("/filtered-facet/%s/%s" % (urllib.quote(field), urllib.quote(query)))
     if field:
         return redirect("/filtered-facet/%s" % urllib.quote(field))

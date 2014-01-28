@@ -11,11 +11,13 @@ DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "useragent"
 FIELDS        = [ "useragent", "f_useragent", "s_useragent", "t_useragent", "ip", "httpdate", "request", "size", "status" ]
 
-def generate_search_page(field, query, title, rows=100):
+def generate_search_page(field, query, title, rows=1000):
     if not query:
-        query = DEFAULT_QUERY
-    if not field:
-        field = DEFAULT_FIELD
+        return render_template("search_response",
+                               title=title,
+                               fields=FIELDS,
+                               query=DEFAULT_QUERY,
+                               field=DEFAULT_FIELD)
 
     url = "http://%s:%d/solr/select?q=%s:%s&rows=%d&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, rows)
     try:

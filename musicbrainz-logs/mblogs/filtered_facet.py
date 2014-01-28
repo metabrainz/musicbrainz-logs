@@ -14,26 +14,31 @@ from ml_server import app
 #   Unknown user agents
 
 # all string names should be lowercase
-gratis_useragent_strings = ["beets", "vlc", "headphones", "picard", "banshee", "xbmc", "googlebot"]
-paying_useragent_strings  = ["jaikoz", "figureeight", "songkong", "guardian.co.uk" ]
+gratis_useragent_strings = ["beets", "vlc", "headphones", "picard", "banshee", "xbmc", "googlebot", "check_http" ]
+paying_useragent_strings  = ["jaikoz", "figureeight", "songkong", "guardian" ]
 
 DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "f_useragent"
 FIELDS        = [ "useragent", "f_useragent", "s_useragent", "t_useragent", "ip", "httpdate", "request", "size", "status" ]
 
-def sort_facets(facets):
-    print "sort facets --"
-    ret = []
-    for k in sorted(facets.keys()):
-        print k
-        ret.append({ 'field' : k, 'value' : facets[k]})
+def count_and_format(doc_list):
+    docs = []
+    facet_count = 0
+    for doc in doc_list.keys():
+        facet_count += doc_list[doc]
+        docs.append({ 'field' : escape(doc),
+                      'value' : doc_list[doc] })
 
-    return ret
+    docs = sorted(docs, key=lambda k: k['value'], reverse=True)
+    for doc in docs:
+        doc['value'] = "{:,}".format(doc['value'])
+
+    return (facet_count, docs)
 
 def filter_useragents(docs):
-    gratis_useragents = {}
-    paying_useragents = {}
-    other_useragents = {}
+    gratis = {}
+    paying = {}
+    other = {}
     for doc in docs:
         found = False
         lc_field = doc['field'].lower()
@@ -41,83 +46,88 @@ def filter_useragents(docs):
             if lc_field.find(ua) != -1:
                 found = True
                 try:
-                    count = gratis_useragents[ua]
+                    count = gratis[ua]
                 except KeyError:
                     count = 0
 
-                gratis_useragents[ua] = count + doc['value']
+                gratis[ua] = count + doc['value']
                 break
         if not found:
             for ua in paying_useragent_strings:
                 if lc_field.find(ua) != -1:
                     found = True
                     try:
-                        count = paying_useragents[ua]
+                        count = paying[ua]
                     except KeyError:
                         count = 0
 
-                    paying_useragents[ua] = count + doc['value']
+                    paying[ua] = count + doc['value']
                     break
         if not found:
-            other_useragents[ua] = count + doc['value']
+            try:
+                count = paying[lc_field]
+            except KeyError:
+                count = 0
+            other[lc_field] = count + doc['value']
 
-    gratis_useragents = sort_facets(gratis_useragents)
-    paying_useragents = sort_facets(paying_useragents)
-    other_useragents = sort_facets(other_useragents)
+    (gratis_facets, gratis) = count_and_format(gratis)
+    (paying_facets, paying) = count_and_format(paying)
+    (other_facets, other) = count_and_format(other)
 
-    return (gratis_useragents,
-            paying_useragents,
-            other_useragents)
-
-def jazz_up_results(doc_list):
     docs = []
-    facet_count = 0
-    for doc in doc_list:
-        facet_count += int(doc['value'])
-        docs.append({ 'field' : escape(doc['field']),
-                      'value' : "{:,}".format(doc['value']) })
+    docs.append({ 'title' : 'Gratis', 'facets' : gratis, 'count' : gratis_facets }) 
+    docs.append({ 'title' : 'Paying', 'facets' : paying, 'count' : paying_facets }) 
+    docs.append({ 'title' : 'Other', 'facets' : other, 'count' : other_facets })
 
-    return (facet_count, docs)
+    return (gratis_facets + paying_facets + other_facets, docs)
 
-def generate_facet_page(field, query, title, rows=100):
+def generate_facet_page(field, query, title, rows=500):
     if not query:
-        query = DEFAULT_QUERY
+        return render_template("filtered_facet_response",
+                               title=title,
+                               fields=FIELDS,
+                               query=DEFAULT_QUERY,
+                               field=DEFAULT_FIELD)
     if not field:
         field = DEFAULT_FIELD
 
     url = "http://%s:%d/solr/select?q=%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, field, rows)
-    print url
-    try:
-        response = urllib2.urlopen(url)
-        pass
-    except urllib2.HTTPError, e:
-        code = e.code
-        return render_template("filtered_facet_response", 
-                               error="The SOLR servers says: Ur query sucks: '%s' %d" % (query, code), 
-                               query=query,
-                               field=field,
-                               fields=FIELDS,
-                               url=url,
-                               title=title)
-    except urllib2.URLError, e:
-        code = e.getcode()
-        return render_template("filtered_facet_response", 
-                               error="The SOLR server could not be reached: %d" % code,
-                               query=query,
-                               field=field,
-                               fields=FIELDS,
-                               url=url,
-                               title=title)
-    except:
-        return render_template("filtered_facet_response", 
-                               error="Unknown error communicating with SOLR server.",
-                               query=query,
-                               fields=FIELDS,
-                               field=field,
-                               url=url,
-                               title=title)
-        
-    jdata = response.read()
+    if True:
+        try:
+            response = urllib2.urlopen(url)
+            pass
+        except urllib2.HTTPError, e:
+            code = e.code
+            return render_template("filtered_facet_response", 
+                                   error="The SOLR servers says: Ur query sucks: '%s' %d" % (query, code), 
+                                   query=query,
+                                   field=field,
+                                   fields=FIELDS,
+                                   url=url,
+                                   title=title)
+        except urllib2.URLError, e:
+            code = e.getcode()
+            return render_template("filtered_facet_response", 
+                                   error="The SOLR server could not be reached: %d" % code,
+                                   query=query,
+                                   field=field,
+                                   fields=FIELDS,
+                                   url=url,
+                                   title=title)
+        except:
+            return render_template("filtered_facet_response", 
+                                   error="Unknown error communicating with SOLR server.",
+                                   query=query,
+                                   fields=FIELDS,
+                                   field=field,
+                                   url=url,
+                                   title=title)
+            
+        jdata = response.read()
+    else:
+        f = open("test.json", "r")
+        jdata = f.read()
+        f.close()
 
     data = json.loads(jdata)
     docs = []
@@ -128,14 +138,9 @@ def generate_facet_page(field, query, title, rows=100):
         docs.append({ 'field' : doc_data[i * 2], 
                       'value' : doc_data[i * 2 + 1] })
 
-    gratis_useragents, paying_useragents, other_useragents = filter_useragents(docs)
-    ret = []
-    ret.append(jazz_up_results(gratis_useragents))
-    ret.append(jazz_up_results(paying_useragents))
-    ret.append(jazz_up_results(other_useragents))
-
+    facet_count, filtered_docs = filter_useragents(docs)
     return render_template("filtered_facet_response", 
-                           docs=docs, 
+                           docs=filtered_docs,
                            num_found="{:,}".format(num_found),
                            doc_count="{:,}".format(len(docs)),
                            facet_count="{:,}".format(facet_count),

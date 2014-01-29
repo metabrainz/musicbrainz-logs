@@ -14,8 +14,23 @@ from ml_server import app
 #   Unknown user agents
 
 # all string names should be lowercase
-gratis_useragent_strings = ["beets", "vlc", "headphones", "picard", "banshee", "xbmc", "googlebot", "check_http" ]
-paying_useragent_strings  = ["jaikoz", "figureeight", "songkong", "guardian" ]
+gratis_useragent_strings = ["beets", "vlc", "headphones", "picard", "banshee", "xbmc", 
+                            "googlebot", "check_http", "musicbee", "vox", "soundmaven", 
+                            "muspy", "nsplayer", "recordlective", "mp3tag", "xld", 
+                            "amarok", "gvfs", "universalscrobbler", "clementine",
+                            "libjuicer", "zuseme", "rhythmbox", "foobar2000", "puddletag",
+                            "bolktagger"]
+
+# Give credit: tagscanner, audioexpert
+# mysterious user agent strings: http://www.mediabrowser3.com/
+prey_useragent_strings = ["songgenie", "anyplay", "tagscanner", "abelssoft", 
+                          "audioexpert", "nokiamusicingestion",
+                          "musicmeter.nl", "mytunespro", "younity", "muziclips",
+                          "collectorz.com", "ezcdaudioconverter", "swinsian",
+                          "easycddaextractor"]
+paying_useragent_strings  = ["jaikoz", "figureeight", "songkong", "guardian", "magic", "yate",
+                             "bbc"]
+
 
 DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "f_useragent"
@@ -39,6 +54,7 @@ def filter_useragents(docs):
     gratis = {}
     paying = {}
     other = {}
+    prey = {}
     for doc in docs:
         found = False
         lc_field = doc['field'].lower()
@@ -64,6 +80,17 @@ def filter_useragents(docs):
                     paying[ua] = count + doc['value']
                     break
         if not found:
+            for ua in prey_useragent_strings:
+                if lc_field.find(ua) != -1:
+                    found = True
+                    try:
+                        count = paying[ua]
+                    except KeyError:
+                        count = 0
+
+                    prey[ua] = count + doc['value']
+                    break
+        if not found:
             try:
                 count = paying[lc_field]
             except KeyError:
@@ -72,14 +99,29 @@ def filter_useragents(docs):
 
     (gratis_facets, gratis) = count_and_format(gratis)
     (paying_facets, paying) = count_and_format(paying)
+    (prey_facets, prey) = count_and_format(prey)
     (other_facets, other) = count_and_format(other)
+    total_facets = gratis_facets + paying_facets + other_facets + prey_facets
 
     docs = []
-    docs.append({ 'title' : 'Gratis', 'facets' : gratis, 'count' : gratis_facets }) 
-    docs.append({ 'title' : 'Paying', 'facets' : paying, 'count' : paying_facets }) 
-    docs.append({ 'title' : 'Other', 'facets' : other, 'count' : other_facets })
+    docs.append({ 'title' : 'Gratis', 
+                  'facets' : gratis, 
+                  'count' : "{:,}".format(gratis_facets),
+                  'percent' : int(100 * gratis_facets / total_facets) }) 
+    docs.append({ 'title' : 'Paying', 
+                  'facets' : paying, 
+                  'count' : "{:,}".format(paying_facets),
+                  'percent' : int(100 * paying_facets / total_facets) }) 
+    docs.append({ 'title' : 'Prey', 
+                  'facets' : prey, 
+                  'count' : "{:,}".format(prey_facets),
+                  'percent' : int(100 * prey_facets / total_facets) }) 
+    docs.append({ 'title' : 'Other', 
+                  'facets' : other, 
+                  'count' : "{:,}".format(other_facets),
+                  'percent' : int(100 * other_facets / total_facets) }) 
 
-    return (gratis_facets + paying_facets + other_facets, docs)
+    return (total_facets, docs)
 
 def generate_facet_page(field, query, title, rows=500):
     if not query:

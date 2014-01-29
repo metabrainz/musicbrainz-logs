@@ -3,20 +3,30 @@
 {% block body %}
 <div class="row-fluid">
     <div class="span10">
-       <h2>Report types</h2>
-       <ul>
+        <ul class="nav nav-pills" style="float: right;">
+           <li class="active"><a href="/">Home</a></li>
+           <li><a href="/search">Search</a></li>
+           <li><a href="/facet">Faceted</a></li>
+           <li><a href="/filtered-facet">Filtered</a></li>
+        </ul>
+        <div style="float: clear;"></div>
+        <h1>{{ title }}</h1>
+        <div style="padding-bottom: 20px"></div>
+
+        <h2>Search types</h2>
+        <ul>
            <li><a href="/search">Search logs</a></li>
            <li><a href="/facet">Faceted search</a></li>
            <li><a href="/filtered-facet">Filtered facet search by known user agents</a></li>
-       </ul>
-       <h2>Predefined reports</h2>
-       <ul>
-           <li><a href="/facet/ip">Top IPs</a></li>
-           <li><a href="/facet/t_useragent">All user agents on tiny string</a></li>
-           <li><a href="/facet/s_useragent">All user agents on short string</a></li>
-           <li><a href="/facet/f_useragent">All user agents on full string</a></li>
+        </ul>
+        <h2>Predefined reports</h2>
+        <ul>
+           <li><a href="/facet/ip/%2A">Top IPs</a></li>
+           <li><a href="/facet/t_useragent/%2A">All user agents on tiny string</a></li>
+           <li><a href="/facet/s_useragent/%2A">All user agents on short string</a></li>
+           <li><a href="/facet/f_useragent/%2A">All user agents on full string</a></li>
            <li><a href="/facet/f_useragent/*0.3devMODIFIED*">All headphones</a></li>
-       </ul>
+        </ul>
     <div class="span2"></div>
 </div>
 {% endblock %}

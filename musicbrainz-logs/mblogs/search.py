@@ -2,10 +2,10 @@
     
 import urllib
 import urllib2
-import json
 from flask import request, render_template, redirect
 from cgi import escape
 from ml_server import app
+from common import solr_query
 
 DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "useragent"
@@ -19,33 +19,15 @@ def generate_search_page(field, query, title, rows=1000):
                                query=DEFAULT_QUERY,
                                field=DEFAULT_FIELD)
 
-    url = "http://%s:%d/solr/select?q=%s:%s&rows=%d&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, rows)
-    try:
-        response = urllib2.urlopen(url)
-        pass
-    except urllib2.HTTPError, e:
+    (data, error) = solr_query("%s:%s&rows=%d&wt=json" % (urllib.quote(field), urllib.quote(query), rows))
+    if error:
         return render_template("search_response", 
-                               error="The SOLR servers says: Ur query sucks: '%s'" % query, 
+                               error=error,
                                query=query,
                                field=field,
                                fields=FIELDS,
                                title=title)
-    except urllib2.URLError:
-        return render_template("search_response", 
-                               error="The SOLR server could not be reached.",
-                               query=query,
-                               field=field,
-                               fields=FIELDS,
-                               title=title)
-    except:
-        return render_template("search_response", 
-                               error="Unknown error communicating with SOLR server.",
-                               query=query,
-                               fields=FIELDS,
-                               field=field,
-                               title=title)
-    jdata = response.read()
-    data = json.loads(jdata)
+
     docs = data['response']['docs']
     num_found = data['response']['numFound']
 
@@ -55,7 +37,6 @@ def generate_search_page(field, query, title, rows=1000):
                            doc_count="{:,}".format(len(docs)),
                            field=field,
                            query=query,
-                           url=url,
                            fields=FIELDS,
                            title=title)
 

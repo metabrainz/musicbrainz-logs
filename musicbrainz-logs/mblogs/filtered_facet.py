@@ -7,6 +7,7 @@ from operator import itemgetter
 from flask import request, render_template, redirect
 from cgi import escape
 from ml_server import app
+from common import solr_query
 
 # Filter facets into groups: 
 #   Known gratis customers: beets, vlc, open source tools, etc
@@ -41,12 +42,11 @@ def count_and_format(doc_list):
     facet_count = 0
     for doc in doc_list.keys():
         facet_count += doc_list[doc]
-        docs.append({ 'field' : escape(doc),
-                      'value' : doc_list[doc] })
+        docs.append([ escape(doc), doc_list[doc] ])
 
-    docs = sorted(docs, key=lambda k: k['value'], reverse=True)
+    docs = sorted(docs, key=itemgetter(1), reverse=True)
     for doc in docs:
-        doc['value'] = "{:,}".format(doc['value'])
+        doc[1] = "{:,}".format(doc[1])
 
     return (facet_count, docs)
 
@@ -103,25 +103,49 @@ def filter_useragents(docs):
     (other_facets, other) = count_and_format(other)
     total_facets = gratis_facets + paying_facets + other_facets + prey_facets
 
-    docs = []
-    docs.append({ 'title' : 'Gratis', 
-                  'facets' : gratis, 
+    groups = []
+    groups.append({ 
+                  'docs' : gratis, 
                   'count' : "{:,}".format(gratis_facets),
-                  'percent' : int(100 * gratis_facets / total_facets) }) 
-    docs.append({ 'title' : 'Paying', 
-                  'facets' : paying, 
+                  'percent' : int(100 * gratis_facets / total_facets),
+                  'headers' : [ 
+                          { 'width' : 50, 'text' : 'Gratis' } ,
+                          { 'width' : 50, 'text' : "%s (%d%%)" % ("{:,}".format(gratis_facets), 
+                                               int(100 * gratis_facets / total_facets)) }
+                      ]
+                  }) 
+    groups.append({ 
+                  'docs' : paying, 
                   'count' : "{:,}".format(paying_facets),
-                  'percent' : int(100 * paying_facets / total_facets) }) 
-    docs.append({ 'title' : 'Prey', 
-                  'facets' : prey, 
+                  'percent' : int(100 * paying_facets / total_facets),
+                  'headers' : [ 
+                          { 'width' : 50, 'text' : 'Paying' } ,
+                          { 'width' : 50, 'text' : "%s (%d%%)" % ("{:,}".format(paying_facets), 
+                                                   int(100 * paying_facets / total_facets)) }
+                      ]
+                  }) 
+    groups.append({ 
+                  'docs' : prey, 
                   'count' : "{:,}".format(prey_facets),
-                  'percent' : int(100 * prey_facets / total_facets) }) 
-    docs.append({ 'title' : 'Other', 
-                  'facets' : other, 
+                  'percent' : int(100 * prey_facets / total_facets),
+                  'headers' : [ 
+                          { 'width' : 50, 'text' : 'Prey' } ,
+                          { 'width' : 50, 'text' : "%s (%d%%)" % ("{:,}".format(prey_facets), 
+                                                   int(100 * prey_facets / total_facets)) }
+                      ]
+                  }) 
+    groups.append({ 
+                  'docs' : other, 
                   'count' : "{:,}".format(other_facets),
-                  'percent' : int(100 * other_facets / total_facets) }) 
+                  'percent' : int(100 * other_facets / total_facets),
+                  'headers' : [ 
+                          { 'width' : 50, 'text' : 'Other' } ,
+                          { 'width' : 50, 'text' : "%s (%d%%)" % ("{:,}".format(other_facets), 
+                                                   int(100 * other_facets / total_facets)) }
+                      ]
+                  }) 
 
-    return (total_facets, docs)
+    return (total_facets, groups)
 
 def generate_facet_page(field, query, title, rows=500):
     if not query:
@@ -133,45 +157,15 @@ def generate_facet_page(field, query, title, rows=500):
     if not field:
         field = DEFAULT_FIELD
 
-    url = "http://%s:%d/solr/select?q=%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, field, rows)
-    if True:
-        try:
-            response = urllib2.urlopen(url)
-            pass
-        except urllib2.HTTPError, e:
-            code = e.code
-            return render_template("filtered_facet_response", 
-                                   error="The SOLR servers says: Ur query sucks: '%s' %d" % (query, code), 
-                                   query=query,
-                                   field=field,
-                                   fields=FIELDS,
-                                   url=url,
-                                   title=title)
-        except urllib2.URLError, e:
-            code = e.getcode()
-            return render_template("filtered_facet_response", 
-                                   error="The SOLR server could not be reached: %d" % code,
-                                   query=query,
-                                   field=field,
-                                   fields=FIELDS,
-                                   url=url,
-                                   title=title)
-        except:
-            return render_template("filtered_facet_response", 
-                                   error="Unknown error communicating with SOLR server.",
-                                   query=query,
-                                   fields=FIELDS,
-                                   field=field,
-                                   url=url,
-                                   title=title)
-            
-        jdata = response.read()
-    else:
-        f = open("test.json", "r")
-        jdata = f.read()
-        f.close()
-
-    data = json.loads(jdata)
+    (data, error) = solr_query("%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % 
+                               (urllib.quote(field), urllib.quote(query), urllib.quote(field), rows))
+    if error:
+        return render_template("filtered_facet_response", 
+                               error=error,
+                               query=query,
+                               field=field,
+                               fields=FIELDS,
+                               title=title)
     docs = []
     doc_data = data['facet_counts']['facet_fields'][field]
     num_found = data['response']['numFound']
@@ -180,15 +174,17 @@ def generate_facet_page(field, query, title, rows=500):
         docs.append({ 'field' : doc_data[i * 2], 
                       'value' : doc_data[i * 2 + 1] })
 
-    facet_count, filtered_docs = filter_useragents(docs)
+    facet_count, groups = filter_useragents(docs)
+
+    summary = "%s rows with %s facets from %s documents" % (
+               "{:,}".format(len(docs)),
+               "{:,}".format(facet_count),
+               "{:,}".format(num_found))
+
     return render_template("filtered_facet_response", 
-                           docs=filtered_docs,
-                           num_found="{:,}".format(num_found),
-                           doc_count="{:,}".format(len(docs)),
-                           facet_count="{:,}".format(facet_count),
-                           field=field,
+                           groups=groups,
+                           summary=summary,
                            query=query,
-                           url=url,
                            fields=FIELDS,
                            title=title)
 

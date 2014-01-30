@@ -6,6 +6,7 @@ import json
 from flask import request, render_template, redirect
 from cgi import escape
 from ml_server import app
+from common import solr_query
 
 DEFAULT_QUERY = "*"
 DEFAULT_FIELD = "f_useragent"
@@ -19,36 +20,15 @@ def generate_facet_page(field, query, title, rows=1000):
                                query=DEFAULT_QUERY,
                                field=DEFAULT_FIELD)
 
-    url = "http://%s:%d/solr/select?q=%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % (app.SOLR_SERVER, app.SOLR_PORT, field, query, field, rows)
-    try:
-        response = urllib2.urlopen(url)
-    except urllib2.HTTPError, e:
+    (data, error) = solr_query("%s:%s&facet=true&facet.mincount=1&facet.field=%s&facet.limit=%d&rows=0&wt=json" % 
+                               (urllib.quote(field), urllib.quote(query), urllib.quote(field), rows))
+    if error:
         return render_template("facet_response", 
-                               error="The SOLR servers says: Ur query sucks: '%s' %d: %s" % (query, e.code, e.reason), 
+                               error=error,
                                query=query,
                                field=field,
                                fields=FIELDS,
-                               url=url,
                                title=title)
-    except urllib2.URLError, e:
-        return render_template("facet_response", 
-                               error="The SOLR server could not be reached: %s" % e.args[0][1],
-                               query=query,
-                               field=field,
-                               fields=FIELDS,
-                               url=url,
-                               title=title)
-    except:
-        return render_template("facet_response", 
-                               error="Unknown error communicating with SOLR server.",
-                               query=query,
-                               fields=FIELDS,
-                               field=field,
-                               url=url,
-                               title=title)
-        
-    jdata = response.read()
-    data = json.loads(jdata)
     docs = []
     doc_data = data['facet_counts']['facet_fields'][field]
     num_found = data['response']['numFound']
@@ -65,7 +45,6 @@ def generate_facet_page(field, query, title, rows=1000):
                            facet_count="{:,}".format(facet_count),
                            field=field,
                            query=query,
-                           url=url,
                            fields=FIELDS,
                            title=title)
 

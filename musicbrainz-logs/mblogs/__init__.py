@@ -14,3 +14,4 @@ import index
 import facet
 import search
 import filtered_facet
+import common
